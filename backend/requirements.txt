@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+yt-dlp
+spotdl
+pydub
+Pillow>=10.0.0
+python-multipart
