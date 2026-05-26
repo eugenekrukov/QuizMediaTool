@@ -366,8 +366,14 @@ export default function App() {
   const playVideoRegion = (start, end) => {
     if (!videoRef.current) return;
     clearRegionInterval();
+    // Сначала ставим WaveSurfer в start, потом видео — handleVideoSeeked
+    // увидит флаг и не перепишет позицию WS (нужно на случай, если видео
+    // зажимает seek к границам своего seekable range).
+    if (wavesurferRef.current) wavesurferRef.current.setTime(start);
+    isSeekingFromWSRef.current = true;
     videoRef.current.currentTime = start;
-    videoRef.current.play();
+    setCurrentTime(start);
+    videoRef.current.play().catch(() => {});
     setIsPlaying(true);
     startRegionInterval(end, "video");
   };
@@ -413,20 +419,33 @@ export default function App() {
   togglePlayRef.current = togglePlay; // обновляем ref при каждом рендере
 
   const handleVideoSeeking = () => {
-    // Только сбрасываем флаг; синхронизацию WS делаем в onSeeked после завершения seek.
+    // No-op: вся синхронизация WS делается в onSeeked, когда финальное currentTime
+    // гарантированно установлено браузером. Раньше тут потреблялся флаг
+    // isSeekingFromWSRef, но это приводило к гонке: если seeking не фаерился
+    // (например, при попытке установить ту же позицию) — флаг утекал и портил
+    // следующий нативный seek по таймлайну видео.
+  };
+
+  const handleVideoSeeked = () => {
+    if (!videoRef.current) return;
+    // Если seek инициирован нами из клика по аудиоволне или из playVideoRegion —
+    // WaveSurfer уже установлен в правильную позицию (или будет установлен явно).
+    // Не перетираем её значением videoRef.current.currentTime, потому что браузер
+    // мог зажать seek к границам seekable range — это приводило к тому, что
+    // курсор аудиоволны прыгал на 0 после клика по волне.
     if (isSeekingFromWSRef.current) {
       isSeekingFromWSRef.current = false;
       return;
     }
-    // Внешний seek (нативные controls) — WS синхронизируется в onSeeked.
-  };
-
-  const handleVideoSeeked = () => {
-    const finalTime = videoRef.current?.currentTime ?? 0;
-    if (wavesurferRef.current) {
-      wavesurferRef.current.setTime(finalTime);
-    }
+    // Внешний seek (нативные controls видеоплеера) — синхронизируем волну с видео.
+    const finalTime = videoRef.current.currentTime;
     setCurrentTime(finalTime);
+    if (wavesurferRef.current) {
+      const wsTime = wavesurferRef.current.getCurrentTime();
+      if (Math.abs(finalTime - wsTime) > 0.05) {
+        wavesurferRef.current.setTime(finalTime);
+      }
+    }
   };
 
   // Обновление времени (только для отображения)
@@ -606,24 +625,31 @@ export default function App() {
           if (regionClickedRef.current) return;
 
           const seekTime = typeof newTime === "number" ? newTime : ws.getCurrentTime();
-          const wasPlaying = fileType === "video"
-            ? !!videoRef.current && !videoRef.current.paused
-            : ws.isPlaying();
+
+          // Ручной seek всегда выходит из режима отрезка.
+          clearRegionInterval();
 
           if (fileType === "video" && videoRef.current) {
-            clearRegionInterval();
-            isSeekingFromWSRef.current = true; // помечаем: этот seek — наш, не синхронизировать обратно
+            const wasPlaying = !videoRef.current.paused;
+            isSeekingFromWSRef.current = true; // маркер для handleVideoSeeked
             videoRef.current.currentTime = seekTime;
             setCurrentTime(seekTime);
             if (wasPlaying) {
-              videoRef.current.play();
+              // Видео могло слегка приостановиться во время seek — гарантируем
+              // продолжение воспроизведения с новой позиции.
+              videoRef.current.play().catch(() => {});
               setIsPlaying(true);
             }
           } else {
-            clearRegionInterval();
+            // Аудио-файл: WS уже вызвал seekTo внутри себя перед эмитом interaction,
+            // но повторяем setTime защитно — если внутренний seek по какой-то причине
+            // не зафиксировался (например, audio element не успел обработать), это
+            // явно вернёт курсор и позицию воспроизведения на seekTime, а не на 0.
+            const wasPlaying = ws.isPlaying();
+            ws.setTime(seekTime);
             setCurrentTime(seekTime);
             if (wasPlaying) {
-              ws.play();
+              ws.play().catch(() => {});
               setIsPlaying(true);
             }
           }

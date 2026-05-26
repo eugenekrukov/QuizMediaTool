@@ -1,0 +1,165 @@
+diff --git a/App.jsx b/App.jsx
+index 0000000..1111111 100644
+--- a/App.jsx
++++ b/App.jsx
+@@
+   const regionClickedRef = useRef(false); // флаг: interaction должен игнорировать этот клик
+   const isSeekingFromWSRef = useRef(false); // флаг: seek инициирован из WS interaction, не синхронизировать обратно
++  const isManualSeekingRef = useRef(false); // общий флаг ручного seek для video/ws
+ 
+@@
+   const clearRegionInterval = () => {
+     pauseRegionPlayback();
+     currentRegionEndRef.current = null;
+   };
++
++  const beginManualSeek = () => {
++    isManualSeekingRef.current = true;
++  };
++
++  const endManualSeek = () => {
++    requestAnimationFrame(() => {
++      isManualSeekingRef.current = false;
++    });
++  };
++
++  const seekVideoTo = (time) => {
++    if (!videoRef.current) return;
++    beginManualSeek();
++    videoRef.current.currentTime = Math.max(0, time || 0);
++    setCurrentTime(Math.max(0, time || 0));
++    endManualSeek();
++  };
++
++  const seekWaveSurferTo = (time, shouldPlay = false) => {
++    if (!wavesurferRef.current) return;
++    beginManualSeek();
++    wavesurferRef.current.setTime(Math.max(0, time || 0));
++    setCurrentTime(Math.max(0, time || 0));
++    if (shouldPlay) {
++      wavesurferRef.current.play().catch(() => {});
++      setIsPlaying(true);
++    }
++    endManualSeek();
++  };
+ 
+@@
+   const playRegion = (start, end) => {
+     if (!wavesurferRef.current) return;
+     clearRegionInterval();
+-    wavesurferRef.current.setTime(start);
++    seekWaveSurferTo(start, false);
+     wavesurferRef.current.play();
+     setIsPlaying(true);
+     startRegionInterval(end, "audio");
+   };
+@@
+   const playVideoRegion = (start, end) => {
+     if (!videoRef.current) return;
+     clearRegionInterval();
+     // WaveSurfer start, handleVideoSeeked WS sync, seek seekable range.
+-    if (wavesurferRef.current) wavesurferRef.current.setTime(start);
+-    isSeekingFromWSRef.current = true;
+-    videoRef.current.currentTime = start;
+-    setCurrentTime(start);
++    if (wavesurferRef.current) seekWaveSurferTo(start, false);
++    isSeekingFromWSRef.current = true;
++    seekVideoTo(start);
+     videoRef.current.play().catch(() => {});
+     setIsPlaying(true);
+     startRegionInterval(end, "video");
+   };
+@@
+   const handleVideoSeeked = () => {
+     if (!videoRef.current) return;
+-    // seek playVideoRegion, WaveSurfer.
+-    // videoRef.current.currentTime, seek seekable range, 0.
++    if (isManualSeekingRef.current) return;
+     if (isSeekingFromWSRef.current) {
+       isSeekingFromWSRef.current = false;
+       return;
+     }
+ 
+     const finalTime = videoRef.current.currentTime;
+     setCurrentTime(finalTime);
+     if (wavesurferRef.current) {
+       const wsTime = wavesurferRef.current.getCurrentTime();
+       if (Math.abs(finalTime - wsTime) > 0.05) {
+-        wavesurferRef.current.setTime(finalTime);
++        seekWaveSurferTo(finalTime, !videoRef.current.paused);
+       }
+     }
+   };
+ 
+   const handleVideoTimeUpdate = () => {
+     if (!videoRef.current) return;
+     if (videoRef.current.seeking) return;
++    if (isManualSeekingRef.current) return;
+ 
+     const videoTime = videoRef.current.currentTime;
+     setCurrentTime(videoTime);
+     // WaveSurfer.
+     if (wavesurferRef.current) {
+       const wsTime = wavesurferRef.current.getCurrentTime();
+       if (Math.abs(videoTime - wsTime) > 0.1) {
+-        wavesurferRef.current.setTime(videoTime);
++        seekWaveSurferTo(videoTime, false);
+       }
+     }
+   };
+@@
+   useEffect(() => {
+     if (currentFileType !== "video") return;
+     if (!videoRef.current) return;
+     if (!wavesurferRef.current) return;
+@@
+       syncInterval = setInterval(() => {
+-        if (videoRef.current && wavesurferRef.current && !videoRef.current.paused && !videoRef.current.seeking) {
++        if (isManualSeekingRef.current) return;
++        if (videoRef.current && wavesurferRef.current && !videoRef.current.paused && !videoRef.current.seeking) {
+           const videoTime = videoRef.current.currentTime;
+           const wsTime = wavesurferRef.current.getCurrentTime();
+           if (Math.abs(videoTime - wsTime) > 0.1) {
+-            console.log("SyncInterval: Syncing WaveSurfer to video:", videoTime, "from", wsTime);
+-            wavesurferRef.current.setTime(videoTime);
++            seekWaveSurferTo(videoTime, false);
+           }
+         }
+       }, 50);
+@@
+-    const handlePlay = () => startSync();
+-    const handlePause = () => stopSync();
++    const handlePlay = () => startSync();
++    const handlePause = () => stopSync();
+ 
+     videoRef.current.addEventListener("play", handlePlay);
+     videoRef.current.addEventListener("pause", handlePause);
+@@
+-      const seekTime = typeof newTime === "number" ? newTime : ws.getCurrentTime();
++      const seekTime = typeof newTime === "number" ? newTime : ws.getCurrentTime();
+       clearRegionInterval();
+ 
+       if (fileType === "video") {
+         if (videoRef.current) {
+           const wasPlaying = !videoRef.current.paused;
+           isSeekingFromWSRef.current = true;
+-          handleVideoSeeked();
+-          videoRef.current.currentTime = seekTime;
+-          setCurrentTime(seekTime);
++          seekVideoTo(seekTime);
+           if (wasPlaying) {
+             videoRef.current.play().catch(() => {});
+             setIsPlaying(true);
+           }
+         }
+       } else {
+-        // WS seekTo interaction, setTime seek - , audio element , seekTime, 0.
+         const wasPlaying = ws.isPlaying();
+-        ws.setTime(seekTime);
+-        setCurrentTime(seekTime);
++        seekWaveSurferTo(seekTime, false);
+         if (wasPlaying) {
+           ws.play().catch(() => {});
+           setIsPlaying(true);
+         }
+       }
