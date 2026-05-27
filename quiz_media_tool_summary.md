@@ -69,6 +69,29 @@ Quiz Media Tool — специализированный веб-инструме
 
 Двухколоночный layout: левая панель (300px) + правая (`flex:1`).
 
+### Архитектура (после рефакторинга)
+
+`App.jsx` — тонкий shell (~1300 строк): только JSX + сборка хуков. Вся логика вынесена в:
+
+| Файл | Строк | Ответственность |
+|------|-------|-----------------|
+| `src/api.js` | 89 | Все `fetch`-вызовы к бэкенду (чистые функции, без state) |
+| `src/utils.js` | 19 | `getFileType`, `formatTime`, `formatDuration` |
+| `hooks/useMediaPlayer.js` | ~600 | WaveSurfer init, синхронизация видео, регионы, воспроизведение |
+| `hooks/useQuizData.js` | 85 | `savedQuizData`, сохранение отрезков, экспорт |
+| `hooks/useSearch.js` | 74 | Поиск YouTube/Spotify, `downloadFromSearch` |
+| `hooks/useDownload.js` | 76 | Скачивание по URL, прогресс |
+| `hooks/useImages.js` | 71 | Список изображений, выбор, удаление, смена папки |
+| `hooks/useTracks.js` | 34 | Список треков, `currentTrack`, `hasUnsavedChanges` |
+| `components/DownloadProgressBar.jsx` | 53 | Полоса прогресса скачивания |
+
+`deleteTrack` — координирующая функция в `App.jsx` (вызывает `setTracks` + `deleteTrackQuizData` + `resetPlayer` из разных хуков).
+
+**Ключевые паттерны хуков:**
+- `useMediaPlayer` принимает `savedQuizData` через ref (не state) — плеер не пересоздаётся при изменении отрезков.
+- `onSavedQuizData` / `onHasUnsavedChanges` — коллбэки из `App.jsx` для обратной записи в родительский state.
+- `useSearch` / `useDownload` принимают `{ onTracksRefresh }` — вызывают `fetchTracks()` после успешного скачивания.
+
 ### Верхний уровень — две вкладки
 
 **🎵 Медиа** — весь аудио/видео функционал (поиск, загрузка, редактор).
@@ -80,17 +103,17 @@ Quiz Media Tool — специализированный веб-инструме
 
 Результаты поиска — кнопки в две строки: `🎵 MP3` + `🎬 MP4` (строка 1), `📎 OGG` + `📎 OGV` (строка 2, для LibreOffice).
 
-Панель превью — четыре кнопки: MP3, MP4, OGG, OGV.
+Панель превью — четыре кнопки: MP3, MP4, OGG, OGV (рендерятся из массива, не дублируются).
 
 **OGG** — аудио Vorbis, отображается в приложении как аудио (🎵), вставляется в LibreOffice Impress как звук без ошибки `E_NOTIMPL`.
 
 **OGV** — видео Theora+Vorbis, браузер не воспроизводит (Chrome/Edge не поддерживают Theora), поэтому в приложении показывается как аудио с waveform-волной. В LibreOffice вставляется как видеообъект.
 
-`getFileType` — `.ogv` **не входит** в `videoExtensions` (намеренно: чтобы не пытаться рендерить через `<video>`).
+`getFileType` — `.ogv` **не входит** в `videoExtensions` (намеренно: чтобы не пытаться рендерить через `<video>`). Функция живёт в `src/utils.js`.
 
 **`cookies_from_browser`** — опциональное поле в `DownloadRequest`. Решает ошибку «This video is not available» для гео-блокированных видео. Браузер должен быть запущен на той же машине с активной сессией YouTube.
 
-При смене изображения в библиотеке — проверка `imageEditorDirtyRef` (ref в App.jsx). Если есть несохранённые изменения — `window.confirm`. `ImageEditor` сообщает о грязном состоянии через проп `onDirtyChange(bool)`.
+При смене изображения в библиотеке — проверка `imageEditorDirtyRef` (ref в `useImages`, передаётся в `App.jsx`). Если есть несохранённые изменения — `window.confirm`. `ImageEditor` сообщает о грязном состоянии через проп `onDirtyChange(bool)`.
 
 ### ImageLibrary.jsx (левая панель, вкладка Изображения)
 
@@ -149,7 +172,18 @@ quiz-media-tool/
 │   └── requirements.txt           # fastapi uvicorn yt-dlp pydub Pillow python-multipart
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx                # Главный компонент, роутинг вкладок
+│   │   ├── App.jsx                # Shell: JSX + сборка хуков (~1300 строк)
+│   │   ├── api.js                 # Все fetch-вызовы к бэкенду (чистые функции)
+│   │   ├── utils.js               # getFileType, formatTime, formatDuration
+│   │   ├── hooks/
+│   │   │   ├── useMediaPlayer.js  # WaveSurfer + видео-синхронизация + регионы
+│   │   │   ├── useQuizData.js     # savedQuizData, сохранение отрезков, экспорт
+│   │   │   ├── useSearch.js       # Поиск YouTube/Spotify + downloadFromSearch
+│   │   │   ├── useDownload.js     # Скачивание по URL + прогресс
+│   │   │   ├── useImages.js       # Галерея изображений
+│   │   │   └── useTracks.js       # Список треков, currentTrack, hasUnsavedChanges
+│   │   ├── components/
+│   │   │   └── DownloadProgressBar.jsx
 │   │   ├── ImageEditor.jsx        # Canvas-редактор изображений (681 строк)
 │   │   ├── ImageLibrary.jsx       # Левая панель библиотеки (180 строк)
 │   │   └── main.jsx
