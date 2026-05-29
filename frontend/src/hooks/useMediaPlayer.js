@@ -83,8 +83,9 @@ export function useMediaPlayer({
 
   const seekTo = (time, shouldPlay = false) => {
     if (!wavesurferRef.current) return;
-    wavesurferRef.current.setTime(Math.max(0, time || 0));
-    setCurrentTime(Math.max(0, time || 0));
+    const t = Math.max(0, time || 0);
+    wavesurferRef.current.setTime(t);
+    setCurrentTime(t);
     if (shouldPlay) {
       wavesurferRef.current.play().catch(() => {});
       setIsPlaying(true);
@@ -189,45 +190,74 @@ export function useMediaPlayer({
         const fileType = getFileType(currentTrack);
         setCurrentFileType(fileType);
 
-        // Для видео конвертируем в аудио — воспроизводим через WaveSurfer
-        let audioFile = currentTrack;
+        // Для видео:
+        //   media = videoRef.current → WaveSurfer управляет seek/play/pause видеоэлемента
+        //   peaks + duration → из сконвертированного аудио (декодируем клиентски).
+        //   Передавать url нельзя — WaveSurfer перезапишет src видеоэлемента аудиофайлом.
+        // Для аудио: только url.
+        let wsOptions;
         if (fileType === "video") {
+          if (!videoRef.current) {
+            console.error("videoRef.current не доступен при инициализации плеера");
+            return;
+          }
+
           setIsConverting(true);
+          let audioFile;
           try {
-            const converted = await convertVideoToAudioAPI(currentTrack);
-            if (converted) {
-              audioFile = converted;
-            } else {
-              if (containerRef.current) {
-                containerRef.current.innerHTML =
-                  '<div style="text-align:center;padding:40px;color:#ef4444">❌ Не удалось конвертировать видео в аудио</div>';
-              }
-              return;
-            }
+            audioFile = await convertVideoToAudioAPI(currentTrack);
           } catch (err) {
             console.error("Ошибка конвертации:", err);
-            alert(`Не удалось конвертировать видео в аудио: ${err.message}`);
+            alert(`Не удалось конвертировать видео: ${err.message}`);
             return;
+          }
+
+          if (!audioFile) {
+            return;
+          }
+
+          // Декодируем аудиофайл клиентски → получаем пики для волны
+          let peaks;
+          let audioDuration;
+          try {
+            const audioUrl = `http://127.0.0.1:8000/audio/${encodeURIComponent(audioFile)}`;
+            const response  = await fetch(audioUrl);
+            const arrayBuf  = await response.arrayBuffer();
+            const audioCtx  = new AudioContext();
+            const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+            audioCtx.close();
+
+            audioDuration = audioBuffer.duration;
+            const raw      = audioBuffer.getChannelData(0);
+            const numPeaks = 800;
+            const block    = Math.floor(raw.length / numPeaks);
+            peaks = Array.from({ length: numPeaks }, (_, i) => {
+              let max = 0;
+              for (let j = 0; j < block; j++) max = Math.max(max, Math.abs(raw[i * block + j] || 0));
+              return max;
+            });
+          } catch (err) {
+            console.error("Ошибка декодирования аудио:", err);
+            // Продолжим без пиков — волна не отрисуется, но плеер работает
           } finally {
             setIsConverting(false);
           }
+
+          wsOptions = {
+            media:    videoRef.current,
+            peaks:    peaks ? [peaks] : undefined,
+            duration: audioDuration,
+          };
+        } else {
+          wsOptions = {
+            url: `http://127.0.0.1:8000/audio/${encodeURIComponent(currentTrack)}`,
+          };
         }
 
-        if (containerRef.current) containerRef.current.innerHTML = "";
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Ждём, пока React смонтирует контейнер после setIsConverting(false)
+        await new Promise((resolve) => setTimeout(resolve, 50));
         if (!containerRef.current) return;
-
-        const audioElement = new Audio();
-        audioElement.crossOrigin = "anonymous";
-        audioElement.src = `http://127.0.0.1:8000/audio/${encodeURIComponent(audioFile)}`;
-        audioElement.preload = "metadata";
-        audioElementRef.current = audioElement;
-
-        await new Promise((resolve, reject) => {
-          audioElement.addEventListener("loadedmetadata", resolve);
-          audioElement.addEventListener("error", reject);
-          audioElement.load();
-        });
+        containerRef.current.innerHTML = "";
 
         const ws = WaveSurfer.create({
           container:     containerRef.current,
@@ -236,10 +266,9 @@ export function useMediaPlayer({
           cursorColor:   "#ef4444",
           cursorWidth:   2,
           height:        100,
-          backend:       "MediaElement",
-          media:         audioElement,
           interact:      true,
           dragToSeek:    true,
+          ...wsOptions,
         });
 
         const regions = RegionsPlugin.create();

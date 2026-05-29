@@ -504,17 +504,15 @@ export default function App() {
               </button>
             </div>
 
-            {/* Видеоплеер — нативные контролы, без sync-логики */}
-            {currentFileType === "video" && !isConverting && (
-              <div style={{ marginBottom: "16px" }}>
-                <video
-                  ref={videoRef}
-                  src={`http://127.0.0.1:8000/audio/${encodeURIComponent(currentTrack)}`}
-                  controls
-                  style={{ width: "100%", maxHeight: "360px", backgroundColor: "#000", borderRadius: "8px" }}
-                />
-              </div>
-            )}
+            {/* Видеоплеер — всегда в DOM, скрыт когда не видео */}
+            <div style={{ marginBottom: "16px", display: currentFileType === "video" && !isConverting ? "block" : "none" }}>
+              <video
+                ref={videoRef}
+                src={currentTrack ? `http://127.0.0.1:8000/audio/${encodeURIComponent(currentTrack)}` : ""}
+                controls
+                style={{ width: "100%", maxHeight: "360px", backgroundColor: "#000", borderRadius: "8px" }}
+              />
+            </div>
 
             {/* WaveSurfer */}
             {isConverting ? (
