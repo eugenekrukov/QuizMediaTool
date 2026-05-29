@@ -49,18 +49,11 @@ export default function App() {
     activeRegions,
     togglePlay,
     playRegion,
-    playVideoRegion,
     addQuestionRegion,
     addAnswerRegion,
     removeTimelineRegion,
     saveCurrentTrackSegments,
     resetPlayer,
-    handleVideoPlay,
-    handleVideoPause,
-    handleVideoSeeking,
-    handleVideoSeeked,
-    handleVideoTimeUpdate,
-    handleVideoEnded,
   } = useMediaPlayer({
     savedQuizData,
     onSavedQuizData: setTrackSegments,
@@ -69,8 +62,6 @@ export default function App() {
   });
 
   const {
-    searchSource,
-    setSearchSource,
     searchQuery,
     setSearchQuery,
     searchResults,
@@ -104,14 +95,10 @@ export default function App() {
     handleImagesDirChange,
   } = useImages();
 
-  // ── Координирующая логика (требует доступа к нескольким хукам) ────────────
+  // ── Координирующая логика ─────────────────────────────────────────────────
 
   const deleteTrack = async (trackName) => {
-    if (
-      !confirm(
-        `Вы уверены, что хотите полностью удалить файл "${trackName}" с диска?`
-      )
-    )
+    if (!confirm(`Вы уверены, что хотите полностью удалить файл "${trackName}" с диска?`))
       return;
     try {
       await deleteTrackAPI(trackName);
@@ -136,7 +123,6 @@ export default function App() {
     setPreviewVideo(null);
   };
 
-  // Загружаем изображения при переключении на вкладку
   useEffect(() => {
     if (mainTab === "images") fetchImageFiles();
   }, [mainTab]);
@@ -153,9 +139,7 @@ export default function App() {
         fontFamily: "system-ui, -apple-system, sans-serif",
       }}
     >
-      {/* ════════════════════════════════════════════════════════════════════
-          ЛЕВАЯ КОЛОНКА
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ════════════ ЛЕВАЯ КОЛОНКА ════════════ */}
       <div
         style={{
           width: "300px",
@@ -165,14 +149,9 @@ export default function App() {
           flexDirection: "column",
         }}
       >
-        {/* Главные вкладки: Медиа / Изображения */}
-        <div
-          style={{ display: "flex", flexShrink: 0, borderBottom: "2px solid #0f172a" }}
-        >
-          {[
-            ["media", "🎵 Медиа"],
-            ["images", "🖼 Изображения"],
-          ].map(([id, label]) => (
+        {/* Главные вкладки */}
+        <div style={{ display: "flex", flexShrink: 0, borderBottom: "2px solid #0f172a" }}>
+          {[["media", "🎵 Медиа"], ["images", "🖼 Изображения"]].map(([id, label]) => (
             <button
               key={id}
               onClick={() => setMainTab(id)}
@@ -185,8 +164,7 @@ export default function App() {
                 fontWeight: "600",
                 backgroundColor: mainTab === id ? "#0f172a" : "#1e293b",
                 color: mainTab === id ? "#f1f5f9" : "#64748b",
-                borderBottom:
-                  mainTab === id ? "2px solid #3b82f6" : "2px solid transparent",
+                borderBottom: mainTab === id ? "2px solid #3b82f6" : "2px solid transparent",
               }}
             >
               {label}
@@ -213,10 +191,7 @@ export default function App() {
             {/* Вкладки: Поиск / По ссылке */}
             <div style={{ borderBottom: "1px solid #334155" }}>
               <div style={{ display: "flex" }}>
-                {[
-                  ["search", "🔍 Поиск"],
-                  ["url", "🔗 По ссылке"],
-                ].map(([id, label]) => (
+                {[["search", "🔍 Поиск"], ["url", "🔗 По ссылке"]].map(([id, label]) => (
                   <button
                     key={id}
                     onClick={() => setLeftTab(id)}
@@ -229,8 +204,7 @@ export default function App() {
                       fontWeight: "500",
                       backgroundColor: leftTab === id ? "#0f172a" : "#1e293b",
                       color: leftTab === id ? "#f1f5f9" : "#64748b",
-                      borderBottom:
-                        leftTab === id ? "2px solid #3b82f6" : "2px solid transparent",
+                      borderBottom: leftTab === id ? "2px solid #3b82f6" : "2px solid transparent",
                     }}
                   >
                     {label}
@@ -238,60 +212,14 @@ export default function App() {
                 ))}
               </div>
 
-              {/* ── Панель поиска ── */}
+              {/* ── Поиск YouTube ── */}
               {leftTab === "search" && (
                 <div style={{ padding: "12px" }}>
-                  {/* Переключатель YouTube / Spotify */}
-                  <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
-                    {[
-                      ["youtube", "▶ YouTube"],
-                      ["spotify", "🎧 Spotify"],
-                    ].map(([id, label]) => (
-                      <button
-                        key={id}
-                        onClick={() => {
-                          setSearchSource(id);
-                          // searchResults и searchError обнуляются внутри useSearch
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: "5px 0",
-                          border: "none",
-                          cursor: "pointer",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: "600",
-                          backgroundColor:
-                            searchSource === id
-                              ? id === "spotify"
-                                ? "rgba(29,185,84,0.25)"
-                                : "rgba(59,130,246,0.25)"
-                              : "#0f172a",
-                          color:
-                            searchSource === id
-                              ? id === "spotify"
-                                ? "#4ade80"
-                                : "#93c5fd"
-                              : "#475569",
-                          outline:
-                            searchSource === id
-                              ? `1px solid ${id === "spotify" ? "#4ade80" : "#3b82f6"}`
-                              : "1px solid #334155",
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
                   <form onSubmit={handleSearch} style={{ display: "flex", gap: "6px" }}>
                     <input
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder={
-                        searchSource === "spotify"
-                          ? "Исполнитель, трек..."
-                          : "Поиск на YouTube..."
-                      }
+                      placeholder="Поиск на YouTube..."
                       style={{
                         flex: 1,
                         padding: "7px 10px",
@@ -309,8 +237,7 @@ export default function App() {
                         padding: "7px 12px",
                         borderRadius: "4px",
                         border: "none",
-                        backgroundColor:
-                          searchSource === "spotify" ? "#1db954" : "#3b82f6",
+                        backgroundColor: "#3b82f6",
                         color: "#fff",
                         fontSize: "13px",
                         cursor: "pointer",
@@ -322,16 +249,14 @@ export default function App() {
                 </div>
               )}
 
-              {/* ── Панель скачивания по URL ── */}
+              {/* ── Скачивание по URL ── */}
               {leftTab === "url" && (
                 <div style={{ padding: "12px" }}>
                   <textarea
                     rows={3}
                     value={urlsText}
                     onChange={(e) => setUrlsText(e.target.value)}
-                    placeholder={
-                      "Вставьте ссылки (каждая с новой строки):\n• YouTube: youtube.com/...\n• Spotify: open.spotify.com/track/..."
-                    }
+                    placeholder={"Вставьте ссылки YouTube (каждая с новой строки)"}
                     style={{
                       width: "100%",
                       padding: "8px",
@@ -346,47 +271,26 @@ export default function App() {
                     }}
                     disabled={isDownloading}
                   />
-                  {urlsText.split("\n").some((u) => u.includes("open.spotify.com/track/")) && (
-                    <div
-                      style={{
-                        marginTop: "6px",
-                        padding: "5px 8px",
-                        backgroundColor: "rgba(29,185,84,0.12)",
-                        border: "1px solid rgba(29,185,84,0.4)",
-                        borderRadius: "4px",
-                        fontSize: "11px",
-                        color: "#4ade80",
-                      }}
-                    >
-                      🎧 Spotify → всегда скачивается как MP3
-                    </div>
-                  )}
-                  {!urlsText
-                    .split("\n")
-                    .every(
-                      (u) => u.trim() === "" || u.includes("open.spotify.com/track/")
-                    ) && (
-                    <select
-                      value={downloadType}
-                      onChange={(e) => setDownloadType(e.target.value)}
-                      disabled={isDownloading}
-                      style={{
-                        width: "100%",
-                        marginTop: "8px",
-                        padding: "6px 8px",
-                        borderRadius: "4px",
-                        backgroundColor: "#0f172a",
-                        border: "1px solid #475569",
-                        color: "#e2e8f0",
-                        fontSize: "12px",
-                      }}
-                    >
-                      <option value="audio">🎵 Аудио (MP3)</option>
-                      <option value="video">🎬 Видео (MP4)</option>
-                      <option value="ogg">📎 Аудио OGG — для LibreOffice</option>
-                      <option value="ogv">📎 Видео OGV — для LibreOffice</option>
-                    </select>
-                  )}
+                  <select
+                    value={downloadType}
+                    onChange={(e) => setDownloadType(e.target.value)}
+                    disabled={isDownloading}
+                    style={{
+                      width: "100%",
+                      marginTop: "8px",
+                      padding: "6px 8px",
+                      borderRadius: "4px",
+                      backgroundColor: "#0f172a",
+                      border: "1px solid #475569",
+                      color: "#e2e8f0",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <option value="audio">🎵 Аудио (MP3)</option>
+                    <option value="video">🎬 Видео (MP4)</option>
+                    <option value="ogg">📎 Аудио OGG — для LibreOffice</option>
+                    <option value="ogv">📎 Видео OGV — для LibreOffice</option>
+                  </select>
                   <button
                     onClick={handleDownload}
                     disabled={isDownloading || !urlsText.trim()}
@@ -414,282 +318,100 @@ export default function App() {
             {leftTab === "search" && (
               <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 12px" }}>
                 {isSearching && (
-                  <p
-                    style={{
-                      color: "#64748b",
-                      fontSize: "12px",
-                      textAlign: "center",
-                      padding: "16px 0",
-                    }}
-                  >
+                  <p style={{ color: "#64748b", fontSize: "12px", textAlign: "center", padding: "16px 0" }}>
                     🔍 Поиск...
                   </p>
                 )}
                 {!isSearching && searchError && (
-                  <div
-                    style={{
-                      color: "#f87171",
-                      fontSize: "12px",
-                      padding: "10px 8px",
-                      background: "#1e1b1b",
-                      borderRadius: "6px",
-                      margin: "8px 0",
-                      lineHeight: "1.5",
-                    }}
-                  >
+                  <div style={{ color: "#f87171", fontSize: "12px", padding: "10px 8px", background: "#1e1b1b", borderRadius: "6px", margin: "8px 0", lineHeight: "1.5" }}>
                     ⚠️ {searchError}
                   </div>
                 )}
                 {!isSearching && !searchError && searchResults.length === 0 && searchQuery && (
-                  <p
-                    style={{
-                      color: "#64748b",
-                      fontSize: "12px",
-                      textAlign: "center",
-                      padding: "16px 0",
-                    }}
-                  >
+                  <p style={{ color: "#64748b", fontSize: "12px", textAlign: "center", padding: "16px 0" }}>
                     Ничего не найдено
                   </p>
                 )}
                 {!isSearching && !searchError && searchResults.length === 0 && !searchQuery && (
-                  <p
-                    style={{
-                      color: "#475569",
-                      fontSize: "12px",
-                      textAlign: "center",
-                      padding: "16px 0",
-                    }}
-                  >
+                  <p style={{ color: "#475569", fontSize: "12px", textAlign: "center", padding: "16px 0" }}>
                     Введите запрос для поиска
                   </p>
                 )}
 
-                {/* ── Результаты YouTube ── */}
-                {searchSource === "youtube" &&
-                  searchResults.map((video) => {
-                    const loadingAudio = downloadingIds[`${video.id}-audio`];
-                    const loadingVideo = downloadingIds[`${video.id}-video`];
-                    const loadingOgg = downloadingIds[`${video.id}-ogg`];
-                    const loadingOgv = downloadingIds[`${video.id}-ogv`];
-                    const isPreviewing = previewVideo?.id === video.id;
-                    const anyLoading = !!(loadingAudio || loadingVideo || loadingOgg || loadingOgv);
-                    return (
-                      <div
-                        key={video.id}
+                {searchResults.map((video) => {
+                  const loadingAudio = downloadingIds[`${video.id}-audio`];
+                  const loadingVideo = downloadingIds[`${video.id}-video`];
+                  const loadingOgg   = downloadingIds[`${video.id}-ogg`];
+                  const loadingOgv   = downloadingIds[`${video.id}-ogv`];
+                  const isPreviewing = previewVideo?.id === video.id;
+                  const anyLoading   = !!(loadingAudio || loadingVideo || loadingOgg || loadingOgv);
+                  return (
+                    <div
+                      key={video.id}
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        padding: "8px 0",
+                        borderBottom: "1px solid #1e293b",
+                        alignItems: "flex-start",
+                        backgroundColor: isPreviewing ? "rgba(59,130,246,0.07)" : "transparent",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      <img
+                        src={video.thumbnail}
+                        alt=""
+                        onClick={() => { setPreviewVideo(video); setCurrentTrack(""); }}
                         style={{
-                          display: "flex",
-                          gap: "8px",
-                          padding: "8px 0",
-                          borderBottom: "1px solid #1e293b",
-                          alignItems: "flex-start",
-                          backgroundColor: isPreviewing
-                            ? "rgba(59,130,246,0.07)"
-                            : "transparent",
-                          borderRadius: "4px",
+                          width: "72px", height: "40px", objectFit: "cover",
+                          borderRadius: "3px", flexShrink: 0,
+                          backgroundColor: "#0f172a", cursor: "pointer",
+                          outline: isPreviewing ? "2px solid #3b82f6" : "none",
                         }}
-                      >
-                        <img
-                          src={video.thumbnail}
-                          alt=""
-                          onClick={() => {
-                            setPreviewVideo(video);
-                            setCurrentTrack("");
-                          }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          onClick={() => { setPreviewVideo(video); setCurrentTrack(""); }}
                           style={{
-                            width: "72px",
-                            height: "40px",
-                            objectFit: "cover",
-                            borderRadius: "3px",
-                            flexShrink: 0,
-                            backgroundColor: "#0f172a",
+                            fontSize: "11px",
+                            color: isPreviewing ? "#93c5fd" : "#e2e8f0",
+                            lineHeight: "1.3", marginBottom: "3px",
+                            overflow: "hidden", display: "-webkit-box",
+                            WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
                             cursor: "pointer",
-                            outline: isPreviewing ? "2px solid #3b82f6" : "none",
                           }}
-                        />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            onClick={() => {
-                              setPreviewVideo(video);
-                              setCurrentTrack("");
-                            }}
-                            style={{
-                              fontSize: "11px",
-                              color: isPreviewing ? "#93c5fd" : "#e2e8f0",
-                              lineHeight: "1.3",
-                              marginBottom: "3px",
-                              overflow: "hidden",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              cursor: "pointer",
-                            }}
-                          >
-                            {video.title}
+                        >
+                          {video.title}
+                        </div>
+                        <div style={{ fontSize: "10px", color: "#64748b" }}>
+                          {video.channel}{video.duration ? ` · ${formatDuration(video.duration)}` : ""}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "5px" }}>
+                          <div style={{ display: "flex", gap: "4px" }}>
+                            <button onClick={() => downloadFromSearch(video, "audio")} disabled={anyLoading}
+                              style={{ flex: 1, padding: "2px 4px", fontSize: "10px", borderRadius: "3px", border: "1px solid #3b82f6", backgroundColor: "rgba(59,130,246,0.15)", color: "#93c5fd", cursor: "pointer" }}>
+                              {loadingAudio ? "⏳" : "🎵 MP3"}
+                            </button>
+                            <button onClick={() => downloadFromSearch(video, "video")} disabled={anyLoading}
+                              style={{ flex: 1, padding: "2px 4px", fontSize: "10px", borderRadius: "3px", border: "1px solid #10b981", backgroundColor: "rgba(16,185,129,0.15)", color: "#6ee7b7", cursor: "pointer" }}>
+                              {loadingVideo ? "⏳" : "🎬 MP4"}
+                            </button>
                           </div>
-                          <div style={{ fontSize: "10px", color: "#64748b" }}>
-                            {video.channel}
-                            {video.duration ? ` · ${formatDuration(video.duration)}` : ""}
-                          </div>
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "3px",
-                              marginTop: "5px",
-                            }}
-                          >
-                            <div style={{ display: "flex", gap: "4px" }}>
-                              <button
-                                onClick={() => downloadFromSearch(video, "audio")}
-                                disabled={anyLoading}
-                                title="Скачать аудио (MP3)"
-                                style={{
-                                  flex: 1,
-                                  padding: "2px 4px",
-                                  fontSize: "10px",
-                                  borderRadius: "3px",
-                                  border: "1px solid #3b82f6",
-                                  backgroundColor: "rgba(59,130,246,0.15)",
-                                  color: "#93c5fd",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                {loadingAudio ? "⏳" : "🎵 MP3"}
-                              </button>
-                              <button
-                                onClick={() => downloadFromSearch(video, "video")}
-                                disabled={anyLoading}
-                                title="Скачать видео (MP4)"
-                                style={{
-                                  flex: 1,
-                                  padding: "2px 4px",
-                                  fontSize: "10px",
-                                  borderRadius: "3px",
-                                  border: "1px solid #10b981",
-                                  backgroundColor: "rgba(16,185,129,0.15)",
-                                  color: "#6ee7b7",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                {loadingVideo ? "⏳" : "🎬 MP4"}
-                              </button>
-                            </div>
-                            <div style={{ display: "flex", gap: "4px" }}>
-                              <button
-                                onClick={() => downloadFromSearch(video, "ogg")}
-                                disabled={anyLoading}
-                                title="Скачать аудио OGG (для LibreOffice)"
-                                style={{
-                                  flex: 1,
-                                  padding: "2px 4px",
-                                  fontSize: "10px",
-                                  borderRadius: "3px",
-                                  border: "1px solid #f59e0b",
-                                  backgroundColor: "rgba(245,158,11,0.15)",
-                                  color: "#fcd34d",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                {loadingOgg ? "⏳" : "📎 OGG"}
-                              </button>
-                              <button
-                                onClick={() => downloadFromSearch(video, "ogv")}
-                                disabled={anyLoading}
-                                title="Скачать видео OGV (для LibreOffice)"
-                                style={{
-                                  flex: 1,
-                                  padding: "2px 4px",
-                                  fontSize: "10px",
-                                  borderRadius: "3px",
-                                  border: "1px solid #a78bfa",
-                                  backgroundColor: "rgba(167,139,250,0.15)",
-                                  color: "#c4b5fd",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                {loadingOgv ? "⏳" : "📎 OGV"}
-                              </button>
-                            </div>
+                          <div style={{ display: "flex", gap: "4px" }}>
+                            <button onClick={() => downloadFromSearch(video, "ogg")} disabled={anyLoading}
+                              style={{ flex: 1, padding: "2px 4px", fontSize: "10px", borderRadius: "3px", border: "1px solid #f59e0b", backgroundColor: "rgba(245,158,11,0.15)", color: "#fcd34d", cursor: "pointer" }}>
+                              {loadingOgg ? "⏳" : "📎 OGG"}
+                            </button>
+                            <button onClick={() => downloadFromSearch(video, "ogv")} disabled={anyLoading}
+                              style={{ flex: 1, padding: "2px 4px", fontSize: "10px", borderRadius: "3px", border: "1px solid #a78bfa", backgroundColor: "rgba(167,139,250,0.15)", color: "#c4b5fd", cursor: "pointer" }}>
+                              {loadingOgv ? "⏳" : "📎 OGV"}
+                            </button>
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
-
-                {/* ── Результаты Spotify ── */}
-                {searchSource === "spotify" &&
-                  searchResults.map((track) => {
-                    const isLoading = !!downloadingIds[`${track.id}-audio`];
-                    return (
-                      <div
-                        key={track.id}
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          padding: "8px 0",
-                          borderBottom: "1px solid #1e293b",
-                          alignItems: "center",
-                        }}
-                      >
-                        <img
-                          src={track.thumbnail}
-                          alt=""
-                          style={{
-                            width: "44px",
-                            height: "44px",
-                            objectFit: "cover",
-                            borderRadius: "4px",
-                            flexShrink: 0,
-                            backgroundColor: "#0f172a",
-                          }}
-                        />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: "11px",
-                              color: "#e2e8f0",
-                              lineHeight: "1.3",
-                              marginBottom: "2px",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {track.title}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "10px",
-                              color: "#64748b",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {track.artists}
-                            {track.duration ? ` · ${formatDuration(track.duration)}` : ""}
-                          </div>
-                          <button
-                            onClick={() => downloadFromSearch(track, "audio")}
-                            disabled={isLoading}
-                            style={{
-                              marginTop: "4px",
-                              padding: "2px 8px",
-                              fontSize: "10px",
-                              borderRadius: "3px",
-                              border: "1px solid #1db954",
-                              backgroundColor: "rgba(29,185,84,0.15)",
-                              color: "#4ade80",
-                              cursor: isLoading ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {isLoading ? "⏳ Скачивание..." : "⬇️ Скачать MP3"}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -699,85 +421,42 @@ export default function App() {
                 flex: leftTab === "url" ? 1 : 0,
                 overflowY: "auto",
                 padding: "12px",
-                borderTop:
-                  leftTab === "search" && searchResults.length > 0
-                    ? "1px solid #334155"
-                    : "none",
+                borderTop: leftTab === "search" && searchResults.length > 0 ? "1px solid #334155" : "none",
                 maxHeight: leftTab === "search" ? "220px" : undefined,
               }}
             >
-              <h3
-                style={{
-                  margin: "0 0 8px 0",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#94a3b8",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                }}
-              >
+              <h3 style={{ margin: "0 0 8px 0", fontSize: "12px", fontWeight: "600", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 Доступные файлы
               </h3>
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {tracks.map((track) => {
                   const savedCount = savedQuizData[track]?.length || 0;
                   const isSelected = currentTrack === track;
-                  const fileType = getFileType(track);
+                  const fileType   = getFileType(track);
                   return (
                     <li
                       key={track}
                       onClick={() => handleSelectTrack(track)}
                       style={{
-                        padding: "6px 8px",
-                        borderRadius: "4px",
+                        padding: "6px 8px", borderRadius: "4px",
                         backgroundColor: isSelected ? "#334155" : "transparent",
-                        cursor: "pointer",
-                        marginBottom: "2px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
+                        cursor: "pointer", marginBottom: "2px",
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
                         fontSize: "12px",
-                        transition: "background-color 0.2s",
                       }}
                     >
-                      <span
-                        style={{
-                          color: isSelected ? "#fff" : "#cbd5e1",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          flex: 1,
-                        }}
-                      >
+                      <span style={{ color: isSelected ? "#fff" : "#cbd5e1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
                         {fileType === "audio" ? "🎵" : "🎬"} {track}
                       </span>
                       <div style={{ display: "flex", gap: "6px", marginLeft: "8px" }}>
                         {savedCount > 0 && (
-                          <span
-                            style={{
-                              backgroundColor: "#10b981",
-                              padding: "2px 5px",
-                              borderRadius: "10px",
-                              fontSize: "10px",
-                              fontWeight: "500",
-                            }}
-                          >
+                          <span style={{ backgroundColor: "#10b981", padding: "2px 5px", borderRadius: "10px", fontSize: "10px", fontWeight: "500" }}>
                             {savedCount}
                           </span>
                         )}
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteTrack(track);
-                          }}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            opacity: 0.5,
-                            color: "#cbd5e1",
-                            fontSize: "12px",
-                          }}
+                          onClick={(e) => { e.stopPropagation(); deleteTrack(track); }}
+                          style={{ background: "transparent", border: "none", cursor: "pointer", opacity: 0.5, color: "#cbd5e1", fontSize: "12px" }}
                         >
                           🗑️
                         </button>
@@ -791,106 +470,55 @@ export default function App() {
         )}
       </div>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          ПРАВАЯ КОЛОНКА
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ════════════ ПРАВАЯ КОЛОНКА ════════════ */}
 
       {mainTab === "images" ? (
-        /* Редактор изображений */
         <ImageEditor
           image={selectedImage}
           imagesDir={imagesDir}
-          onClose={() => {
-            handleSelectImage(null);
-            imageEditorDirtyRef.current = false;
-          }}
+          onClose={() => { handleSelectImage(null); imageEditorDirtyRef.current = false; }}
           onRefresh={fetchImageFiles}
           onSelectImage={handleSelectImage}
-          onDirtyChange={(d) => {
-            imageEditorDirtyRef.current = d;
-          }}
+          onDirtyChange={(d) => { imageEditorDirtyRef.current = d; }}
         />
       ) : currentTrack ? (
         /* ── Плеер ── */
-        <div
-          style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}
-        >
-          {/* Шапка плеера */}
-          <div
-            style={{
-              padding: "20px 24px",
-              borderBottom: "1px solid #334155",
-              backgroundColor: "#1e293b",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "16px",
-              }}
-            >
-              <h2
-                style={{ margin: 0, fontSize: "16px", fontWeight: "500", color: "#f1f5f9" }}
-              >
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+          {/* Шапка */}
+          <div style={{ padding: "20px 24px", borderBottom: "1px solid #334155", backgroundColor: "#1e293b" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h2 style={{ margin: 0, fontSize: "16px", fontWeight: "500", color: "#f1f5f9" }}>
                 {currentFileType === "audio" ? "🎵" : "🎬"} {currentTrack}
               </h2>
               <button
                 onClick={handleExportAll}
                 disabled={!hasAnySavedSegments || isExporting}
                 style={{
-                  padding: "6px 12px",
-                  borderRadius: "4px",
-                  border: "none",
+                  padding: "6px 12px", borderRadius: "4px", border: "none",
                   backgroundColor: !hasAnySavedSegments ? "#475569" : "#10b981",
-                  color: "#fff",
-                  fontSize: "12px",
-                  fontWeight: "500",
+                  color: "#fff", fontSize: "12px", fontWeight: "500",
                   cursor: !hasAnySavedSegments || isExporting ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
                 }}
               >
                 {isExporting ? "⏳ Экспорт..." : "🚀 Экспорт"}
               </button>
             </div>
 
-            {/* Видео плеер */}
-            {currentFileType === "video" && (
+            {/* Видеоплеер — нативные контролы, без sync-логики */}
+            {currentFileType === "video" && !isConverting && (
               <div style={{ marginBottom: "16px" }}>
                 <video
                   ref={videoRef}
-                  crossOrigin="anonymous"
                   src={`http://127.0.0.1:8000/audio/${encodeURIComponent(currentTrack)}`}
                   controls
-                  onTimeUpdate={handleVideoTimeUpdate}
-                  onSeeking={handleVideoSeeking}
-                  onSeeked={handleVideoSeeked}
-                  onEnded={handleVideoEnded}
-                  onPlay={handleVideoPlay}
-                  onPause={handleVideoPause}
-                  style={{
-                    width: "100%",
-                    maxHeight: "360px",
-                    backgroundColor: "#000",
-                    borderRadius: "8px",
-                  }}
+                  style={{ width: "100%", maxHeight: "360px", backgroundColor: "#000", borderRadius: "8px" }}
                 />
               </div>
             )}
 
-            {/* Контейнер для волны WaveSurfer */}
+            {/* WaveSurfer */}
             {isConverting ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "30px",
-                  backgroundColor: "#1e293b",
-                  borderRadius: "8px",
-                }}
-              >
+              <div style={{ textAlign: "center", padding: "30px", backgroundColor: "#1e293b", borderRadius: "8px" }}>
                 <p style={{ fontSize: "13px", color: "#94a3b8" }}>
                   🔄 Конвертация видео в аудио для визуализации...
                 </p>
@@ -910,91 +538,34 @@ export default function App() {
             )}
 
             {/* Контролы */}
-            <div
-              style={{
-                display: "flex",
-                gap: "10px",
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
               <button
                 onClick={togglePlay}
                 style={{
-                  padding: "6px 14px",
-                  borderRadius: "4px",
-                  border: "none",
+                  padding: "6px 14px", borderRadius: "4px", border: "none",
                   backgroundColor: isPlaying ? "#ef4444" : "#3b82f6",
-                  color: "#fff",
-                  fontSize: "13px",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
+                  color: "#fff", fontSize: "13px", fontWeight: "500", cursor: "pointer",
                 }}
               >
                 {isPlaying ? "⏸ Пауза" : "▶ Пуск"}
               </button>
 
-              <div
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "13px",
-                  backgroundColor: "#f1f5f9",
-                  color: "#1e293b",
-                  padding: "4px 10px",
-                  borderRadius: "4px",
-                }}
-              >
+              <div style={{ fontFamily: "monospace", fontSize: "13px", backgroundColor: "#f1f5f9", color: "#1e293b", padding: "4px 10px", borderRadius: "4px" }}>
                 {formatTime(currentTime)} / {formatTime(duration)}
               </div>
 
-              <button
-                onClick={addQuestionRegion}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: "4px",
-                  border: "1px solid #3b82f6",
-                  backgroundColor: "rgba(59, 130, 246, 0.15)",
-                  color: "#93c5fd",
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                }}
-              >
+              <button onClick={addQuestionRegion}
+                style={{ padding: "6px 12px", borderRadius: "4px", border: "1px solid #3b82f6", backgroundColor: "rgba(59,130,246,0.15)", color: "#93c5fd", fontSize: "12px", fontWeight: "500", cursor: "pointer" }}>
                 🔵 Вопрос
               </button>
 
-              <button
-                onClick={addAnswerRegion}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: "4px",
-                  border: "1px solid #10b981",
-                  backgroundColor: "rgba(16, 185, 129, 0.15)",
-                  color: "#6ee7b7",
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                }}
-              >
+              <button onClick={addAnswerRegion}
+                style={{ padding: "6px 12px", borderRadius: "4px", border: "1px solid #10b981", backgroundColor: "rgba(16,185,129,0.15)", color: "#6ee7b7", fontSize: "12px", fontWeight: "500", cursor: "pointer" }}>
                 🟢 Ответ
               </button>
 
-              <button
-                onClick={saveCurrentTrackSegments}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: "4px",
-                  border: "none",
-                  backgroundColor: "#e2e8f0",
-                  color: "#1e293b",
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  cursor: "pointer",
-                }}
-              >
+              <button onClick={saveCurrentTrackSegments}
+                style={{ padding: "6px 12px", borderRadius: "4px", border: "none", backgroundColor: "#e2e8f0", color: "#1e293b", fontSize: "12px", fontWeight: "500", cursor: "pointer" }}>
                 💾 Сохранить
               </button>
             </div>
@@ -1006,91 +577,33 @@ export default function App() {
             )}
           </div>
 
-          {/* Регионы и сохранённые данные */}
+          {/* Регионы */}
           <div style={{ padding: "20px 24px" }}>
-            {/* Текущие регионы */}
-            <div
-              style={{
-                backgroundColor: "#1e293b",
-                padding: "16px",
-                borderRadius: "8px",
-                marginBottom: "20px",
-              }}
-            >
-              <h3
-                style={{
-                  margin: "0 0 12px 0",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  color: "#94a3b8",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                }}
-              >
+            <div style={{ backgroundColor: "#1e293b", padding: "16px", borderRadius: "8px", marginBottom: "20px" }}>
+              <h3 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: "600", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 ⏳ Текущие регионы
               </h3>
               {activeRegions.length > 0 ? (
                 activeRegions.map((reg) => {
                   const isQuestion = reg.color.includes("59, 130, 246");
                   return (
-                    <div
-                      key={reg.id}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "8px 12px",
-                        backgroundColor: "#0f172a",
-                        borderRadius: "6px",
-                        marginBottom: "8px",
-                        borderLeft: isQuestion
-                          ? "3px solid #3b82f6"
-                          : "3px solid #10b981",
-                      }}
-                    >
+                    <div key={reg.id}
+                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", backgroundColor: "#0f172a", borderRadius: "6px", marginBottom: "8px", borderLeft: isQuestion ? "3px solid #3b82f6" : "3px solid #10b981" }}>
                       <div style={{ fontSize: "12px" }}>
                         <strong style={{ color: isQuestion ? "#60a5fa" : "#34d399" }}>
                           [{isQuestion ? "Вопрос" : "Ответ"}]
                         </strong>
                         <span style={{ marginLeft: "8px", color: "#cbd5e1" }}>
-                          {reg.start.toFixed(1)}с — {reg.end.toFixed(1)}с (
-                          {(reg.end - reg.start).toFixed(1)}с)
+                          {reg.start.toFixed(1)}с — {reg.end.toFixed(1)}с ({(reg.end - reg.start).toFixed(1)}с)
                         </span>
                       </div>
                       <div>
-                        <button
-                          onClick={() => {
-                            if (currentFileType === "video") {
-                              playVideoRegion(reg.start, reg.end);
-                            } else {
-                              playRegion(reg.start, reg.end);
-                            }
-                          }}
-                          style={{
-                            padding: "3px 8px",
-                            backgroundColor: "rgba(59, 130, 246, 0.2)",
-                            border: "1px solid #3b82f6",
-                            color: "#93c5fd",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            marginRight: "6px",
-                            fontSize: "11px",
-                          }}
-                        >
+                        <button onClick={() => playRegion(reg.start, reg.end)}
+                          style={{ padding: "3px 8px", backgroundColor: "rgba(59,130,246,0.2)", border: "1px solid #3b82f6", color: "#93c5fd", borderRadius: "4px", cursor: "pointer", marginRight: "6px", fontSize: "11px" }}>
                           ▶
                         </button>
-                        <button
-                          onClick={() => removeTimelineRegion(reg.id)}
-                          style={{
-                            padding: "3px 6px",
-                            backgroundColor: "rgba(239, 68, 68, 0.2)",
-                            border: "1px solid #ef4444",
-                            color: "#fca5a5",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontSize: "11px",
-                          }}
-                        >
+                        <button onClick={() => removeTimelineRegion(reg.id)}
+                          style={{ padding: "3px 6px", backgroundColor: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", color: "#fca5a5", borderRadius: "4px", cursor: "pointer", fontSize: "11px" }}>
                           🗑
                         </button>
                       </div>
@@ -1105,79 +618,26 @@ export default function App() {
             </div>
 
             {/* Зафиксированные отрезки */}
-            <div
-              style={{
-                backgroundColor: "#1e293b",
-                padding: "16px",
-                borderRadius: "8px",
-              }}
-            >
-              <h3
-                style={{
-                  margin: "0 0 12px 0",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  color: "#94a3b8",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                }}
-              >
+            <div style={{ backgroundColor: "#1e293b", padding: "16px", borderRadius: "8px" }}>
+              <h3 style={{ margin: "0 0 12px 0", fontSize: "13px", fontWeight: "600", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 📦 Зафиксированные отрезки
               </h3>
               {hasAnySavedSegments ? (
                 Object.keys(savedQuizData).map((trackName) => (
-                  <div
-                    key={trackName}
-                    style={{
-                      backgroundColor: "#0f172a",
-                      padding: "10px",
-                      borderRadius: "6px",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        color: "#38bdf8",
-                        marginBottom: "6px",
-                      }}
-                    >
+                  <div key={trackName} style={{ backgroundColor: "#0f172a", padding: "10px", borderRadius: "6px", marginBottom: "10px" }}>
+                    <div style={{ fontSize: "12px", fontWeight: "600", color: "#38bdf8", marginBottom: "6px" }}>
                       📁 {trackName}
                     </div>
                     {savedQuizData[trackName].map((seg, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "4px 0",
-                          borderBottom: "1px solid #334155",
-                          fontSize: "11px",
-                        }}
-                      >
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #334155", fontSize: "11px" }}>
                         <span>
-                          <strong
-                            style={{
-                              color:
-                                seg.type === "question" ? "#60a5fa" : "#34d399",
-                            }}
-                          >
+                          <strong style={{ color: seg.type === "question" ? "#60a5fa" : "#34d399" }}>
                             [{seg.type === "question" ? "Вопрос" : "Ответ"}]
                           </strong>{" "}
                           {seg.label} ({seg.start.toFixed(1)}с - {seg.end.toFixed(1)}с)
                         </span>
-                        <button
-                          onClick={() => deleteSavedSegment(trackName, seg.id)}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: "#ef4444",
-                            cursor: "pointer",
-                            fontSize: "11px",
-                          }}
-                        >
+                        <button onClick={() => deleteSavedSegment(trackName, seg.id)}
+                          style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "11px" }}>
                           ❌
                         </button>
                       </div>
@@ -1192,134 +652,52 @@ export default function App() {
             </div>
           </div>
         </div>
+
       ) : previewVideo ? (
         /* ── Превью YouTube ── */
-        <div
-          style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: "#0f172a" }}
-        >
-          <div
-            style={{
-              padding: "16px 24px",
-              borderBottom: "1px solid #334155",
-              backgroundColor: "#1e293b",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", backgroundColor: "#0f172a" }}>
+          <div style={{ padding: "16px 24px", borderBottom: "1px solid #334155", backgroundColor: "#1e293b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ minWidth: 0 }}>
-              <h2
-                style={{
-                  margin: "0 0 2px 0",
-                  fontSize: "15px",
-                  fontWeight: "500",
-                  color: "#f1f5f9",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <h2 style={{ margin: "0 0 2px 0", fontSize: "15px", fontWeight: "500", color: "#f1f5f9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 ▶ {previewVideo.title}
               </h2>
               <div style={{ fontSize: "12px", color: "#64748b" }}>
-                {previewVideo.channel}
-                {previewVideo.duration ? ` · ${formatDuration(previewVideo.duration)}` : ""}
+                {previewVideo.channel}{previewVideo.duration ? ` · ${formatDuration(previewVideo.duration)}` : ""}
               </div>
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: "8px",
-                flexShrink: 0,
-                marginLeft: "16px",
-              }}
-            >
+            <div style={{ display: "flex", gap: "8px", flexShrink: 0, marginLeft: "16px" }}>
               {[
-                ["audio", "🎵 Скачать MP3", "#3b82f6", "rgba(59,130,246,0.15)", "#93c5fd"],
-                ["video", "🎬 Скачать MP4", "#10b981", "rgba(16,185,129,0.15)", "#6ee7b7"],
-                ["ogg", "📎 Скачать OGG", "#f59e0b", "rgba(245,158,11,0.15)", "#fcd34d"],
-                ["ogv", "📎 Скачать OGV", "#a78bfa", "rgba(167,139,250,0.15)", "#c4b5fd"],
+                ["audio", "🎵 MP3",  "#3b82f6", "rgba(59,130,246,0.15)",  "#93c5fd"],
+                ["video", "🎬 MP4",  "#10b981", "rgba(16,185,129,0.15)",  "#6ee7b7"],
+                ["ogg",   "📎 OGG",  "#f59e0b", "rgba(245,158,11,0.15)",  "#fcd34d"],
+                ["ogv",   "📎 OGV",  "#a78bfa", "rgba(167,139,250,0.15)", "#c4b5fd"],
               ].map(([type, label, border, bg, color]) => (
-                <button
-                  key={type}
-                  onClick={() => downloadFromSearch(previewVideo, type)}
-                  disabled={
-                    !!downloadingIds[`${previewVideo.id}-audio`] ||
-                    !!downloadingIds[`${previewVideo.id}-video`] ||
-                    !!downloadingIds[`${previewVideo.id}-${type}`]
-                  }
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: "4px",
-                    border: `1px solid ${border}`,
-                    backgroundColor: bg,
-                    color,
-                    fontSize: "12px",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                  }}
-                >
-                  {downloadingIds[`${previewVideo.id}-${type}`]
-                    ? "⏳ Скачивание..."
-                    : label}
+                <button key={type} onClick={() => downloadFromSearch(previewVideo, type)}
+                  disabled={!!downloadingIds[`${previewVideo.id}-${type}`]}
+                  style={{ padding: "6px 14px", borderRadius: "4px", border: `1px solid ${border}`, backgroundColor: bg, color, fontSize: "12px", fontWeight: "500", cursor: "pointer" }}>
+                  {downloadingIds[`${previewVideo.id}-${type}`] ? "⏳" : label}
                 </button>
               ))}
-              <button
-                onClick={() => setPreviewVideo(null)}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: "4px",
-                  border: "none",
-                  backgroundColor: "transparent",
-                  color: "#64748b",
-                  fontSize: "16px",
-                  cursor: "pointer",
-                }}
-                title="Закрыть"
-              >
+              <button onClick={() => setPreviewVideo(null)}
+                style={{ padding: "6px 10px", borderRadius: "4px", border: "none", backgroundColor: "transparent", color: "#64748b", fontSize: "16px", cursor: "pointer" }}>
                 ✕
               </button>
             </div>
           </div>
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "flex-start",
-              padding: "24px",
-            }}
-          >
+          <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "24px" }}>
             <iframe
               key={previewVideo.id}
               src={`https://www.youtube.com/embed/${previewVideo.id}?autoplay=1`}
               allow="autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
-              style={{
-                width: "100%",
-                maxWidth: "900px",
-                aspectRatio: "16/9",
-                border: "none",
-                borderRadius: "8px",
-                backgroundColor: "#000",
-              }}
+              style={{ width: "100%", maxWidth: "900px", aspectRatio: "16/9", border: "none", borderRadius: "8px", backgroundColor: "#000" }}
             />
           </div>
         </div>
+
       ) : (
-        /* Пустое состояние */
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            color: "#64748b",
-          }}
-        >
-          <p style={{ fontSize: "14px" }}>
-            🎬 Выберите трек из списка или найдите видео через поиск
-          </p>
+        <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center", color: "#64748b" }}>
+          <p style={{ fontSize: "14px" }}>🎬 Выберите трек из списка или найдите видео через поиск</p>
         </div>
       )}
     </div>

@@ -80,6 +80,7 @@ def get_audio(filename: str, request: Request):
                 "Content-Range": f"bytes {start}-{end}/{file_size}",
                 "Content-Length": str(end - start + 1),  # явный размер → без chunked encoding
                 "Content-Disposition": "inline",
+                "Cache-Control": "no-cache, no-store",
             }
 
             # StreamingResponse с явным Content-Length.
@@ -101,5 +102,6 @@ def get_audio(filename: str, request: Request):
         headers={
             "Accept-Ranges": "bytes",
             "Content-Disposition": "inline",
+            "Cache-Control": "no-cache, no-store",
         },
     )

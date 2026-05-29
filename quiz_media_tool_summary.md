@@ -205,6 +205,7 @@ quiz-media-tool/
 - **OGV в браузере**: Chrome/Edge не поддерживают Theora, поэтому OGV не входит в `videoExtensions` — показывается через waveform (WaveSurfer конвертирует аудиодорожку в MP3 на лету). Назначение OGV — LibreOffice, не браузер.
 - **LibreOffice совместимость**: MP3/MP4 вызывают ошибку `E_NOTIMPL (hr=0x80004001)` в LibreOffice на Windows. OGG (аудио) и OGV (видео) вставляются без ошибок.
 - **cookies_from_browser**: при ошибке «This video is not available» — передать имя браузера (chrome/firefox/edge и др.). yt-dlp читает cookies из профиля браузера для обхода гео-блокировки.
+- **Seek сбрасывался на начало (аудио)**: в обработчике `interaction` (WaveSurfer) вызов `ws.setTime(seekTime)` был **избыточным** — WaveSurfer уже выполнил seek до эмита события. Второй `setTime()` запускал повторный seek на audio element в `MediaElement` backend; браузер в момент `timeupdate` во время seeking кратковременно возвращал `currentTime = 0`, и курсор прыгал в начало. **Решение**: убран повторный `ws.setTime()` из ветки `interaction` для аудио-файлов (`useMediaPlayer.js`). Остались только `setCurrentTime(seekTime)` (React-состояние) и условный `ws.play()` для возобновления воспроизведения.
 
 **Модуль изображений:**
 - **Canvas overflow fix**: canvas `position:absolute` внутри relative-контейнера + `minWidth:0` на flex-обёртке + 14px padding в `getLayout` — ручки не уходят под правую панель.

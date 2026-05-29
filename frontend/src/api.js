@@ -46,13 +46,6 @@ export const searchYouTubeAPI = async (query) => {
   return data.results || [];
 };
 
-export const searchSpotifyAPI = async (query) => {
-  const res = await fetch(`${BASE}/search/spotify?q=${encodeURIComponent(query)}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || `Ошибка сервера: ${res.status}`);
-  return data.results || [];
-};
-
 // ── Изображения ────────────────────────────────────────────────────────────
 
 export const fetchImagesAPI = async () => {

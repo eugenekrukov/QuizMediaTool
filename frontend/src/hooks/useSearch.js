@@ -1,20 +1,16 @@
 import { useState } from "react";
-import { searchYouTubeAPI, searchSpotifyAPI, downloadAPI } from "../api";
+import { searchYouTubeAPI, downloadAPI } from "../api";
 
 /**
- * Поиск по YouTube / Spotify и скачивание из результатов поиска.
- *
- * @param {Object} params
- * @param {Function} params.onTracksRefresh - вызывается после успешного скачивания
+ * Поиск по YouTube и скачивание из результатов поиска.
  */
 export function useSearch({ onTracksRefresh }) {
-  const [searchSource, setSearchSource] = useState("youtube"); // "youtube" | "spotify"
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery,   setSearchQuery]   = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState(null);
-  const [downloadingIds, setDownloadingIds] = useState({}); // { "videoId-type": true }
-  const [previewVideo, setPreviewVideo] = useState(null);
+  const [isSearching,   setIsSearching]   = useState(false);
+  const [searchError,   setSearchError]   = useState(null);
+  const [downloadingIds, setDownloadingIds] = useState({});
+  const [previewVideo,  setPreviewVideo]  = useState(null);
 
   const handleSearch = async (e) => {
     e?.preventDefault();
@@ -23,17 +19,11 @@ export function useSearch({ onTracksRefresh }) {
     setSearchResults([]);
     setSearchError(null);
     try {
-      const results =
-        searchSource === "spotify"
-          ? await searchSpotifyAPI(searchQuery.trim())
-          : await searchYouTubeAPI(searchQuery.trim());
+      const results = await searchYouTubeAPI(searchQuery.trim());
       setSearchResults(results);
     } catch (err) {
       console.error("Ошибка поиска:", err);
-      setSearchError(
-        err.message ||
-          "Не удалось подключиться к серверу. Убедитесь, что бэкенд запущен."
-      );
+      setSearchError(err.message || "Не удалось подключиться к серверу. Убедитесь, что бэкенд запущен.");
     } finally {
       setIsSearching(false);
     }
@@ -57,15 +47,12 @@ export function useSearch({ onTracksRefresh }) {
   };
 
   return {
-    searchSource,
-    setSearchSource,
     searchQuery,
     setSearchQuery,
     searchResults,
     isSearching,
     searchError,
     downloadingIds,
-    setDownloadingIds,
     previewVideo,
     setPreviewVideo,
     handleSearch,
