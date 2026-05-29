@@ -21,7 +21,6 @@ export function useMediaPlayer({
   const wavesurferRef        = useRef(null);
   const regionsPluginRef     = useRef(null);
   const isInitialLoadingRef  = useRef(false);
-  const regionIntervalRef    = useRef(null);
   const isPlayingRegionRef   = useRef(false);
   const currentRegionEndRef  = useRef(null);
   const audioElementRef      = useRef(null);
@@ -52,31 +51,9 @@ export function useMediaPlayer({
     );
   };
 
-  const pauseRegionPlayback = () => {
-    if (regionIntervalRef.current) {
-      clearInterval(regionIntervalRef.current);
-      regionIntervalRef.current = null;
-    }
+  const stopRegionPlayback = () => {
     isPlayingRegionRef.current = false;
-  };
-
-  const clearRegionInterval = () => {
-    pauseRegionPlayback();
     currentRegionEndRef.current = null;
-  };
-
-  const startRegionInterval = (end) => {
-    if (regionIntervalRef.current) clearInterval(regionIntervalRef.current);
-    isPlayingRegionRef.current = true;
-    currentRegionEndRef.current = end;
-    regionIntervalRef.current = setInterval(() => {
-      const pos = wavesurferRef.current?.getCurrentTime();
-      if (pos !== undefined && pos >= end) {
-        wavesurferRef.current?.pause();
-        setIsPlaying(false);
-        clearRegionInterval();
-      }
-    }, 50);
   };
 
   // ── Seek / Play ───────────────────────────────────────────────────────────
@@ -94,27 +71,29 @@ export function useMediaPlayer({
 
   const playRegion = (start, end) => {
     if (!wavesurferRef.current) return;
-    clearRegionInterval();
-    seekTo(start);
-    wavesurferRef.current.play();
+    isPlayingRegionRef.current = true;
+    currentRegionEndRef.current = end;
+    // WaveSurfer's built-in play(start, end) sets stopAtPosition and stops automatically
+    wavesurferRef.current.play(start, end).catch(() => {});
     setIsPlaying(true);
-    startRegionInterval(end);
   };
 
   const togglePlay = () => {
     if (!wavesurferRef.current) return;
 
     if (isPlayingRegionRef.current) {
-      pauseRegionPlayback();
+      // Pause during region playback
+      isPlayingRegionRef.current = false;
       wavesurferRef.current.pause();
       setIsPlaying(false);
       return;
     }
 
     if (currentRegionEndRef.current !== null) {
-      wavesurferRef.current.play();
+      // Resume region playback from current position (don't seek back to start)
+      isPlayingRegionRef.current = true;
+      wavesurferRef.current.play(undefined, currentRegionEndRef.current).catch(() => {});
       setIsPlaying(true);
-      startRegionInterval(currentRegionEndRef.current);
       return;
     }
 
@@ -277,8 +256,18 @@ export function useMediaPlayer({
         regionsPluginRef.current = regions;
 
         ws.on("play",   () => setIsPlaying(true));
-        ws.on("pause",  () => setIsPlaying(false));
-        ws.on("finish", () => { setIsPlaying(false); clearRegionInterval(); });
+        ws.on("pause",  () => {
+          setIsPlaying(false);
+          isPlayingRegionRef.current = false;
+          // If WaveSurfer stopped at the region end, clear the end marker
+          if (currentRegionEndRef.current !== null) {
+            const ct = ws.getCurrentTime();
+            if (ct >= currentRegionEndRef.current - 0.1) {
+              currentRegionEndRef.current = null;
+            }
+          }
+        });
+        ws.on("finish", () => { setIsPlaying(false); stopRegionPlayback(); });
 
         ws.on("ready", () => {
           setDuration(ws.getDuration());
@@ -317,7 +306,7 @@ export function useMediaPlayer({
         ws.on("interaction", (newTime) => {
           if (regionClickedRef.current) return;
           const t = typeof newTime === "number" ? newTime : ws.getCurrentTime();
-          clearRegionInterval();
+          stopRegionPlayback();
           const wasPlaying = ws.isPlaying();
           seekTo(t);
           if (wasPlaying) { ws.play().catch(() => {}); setIsPlaying(true); }
@@ -357,11 +346,11 @@ export function useMediaPlayer({
   }, [currentTrack]);
 
   // Очистка при размонтировании
-  useEffect(() => { return () => clearRegionInterval(); }, []);
+  useEffect(() => { return () => stopRegionPlayback(); }, []);
 
   // Сброс при смене трека
   useEffect(() => {
-    clearRegionInterval();
+    stopRegionPlayback();
     setIsPlaying(false);
     if (wavesurferRef.current) wavesurferRef.current.pause();
   }, [currentTrack]);
